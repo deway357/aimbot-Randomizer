@@ -20,12 +20,10 @@ local function showLoadingMessage()
     textLabel.TextSize = 20
     textLabel.Parent = screenGui
 
-    -- Optionally, you can set a timeout for the message to disappear after some time
-    wait(3)  -- Adjust the time as needed
-    screenGui:Destroy()  -- Remove the loading message after 3 seconds
+    wait(3)
+    screenGui:Destroy()
 end
 
--- Call the function before running the script to show the loading message
 showLoadingMessage()
 
 -- INTERNALS
@@ -41,7 +39,7 @@ local cam = workspace.CurrentCamera
 -- FOV CIRCLE (Green)
 local fovCircle = Drawing.new("Circle")
 fovCircle.Radius = getgenv().FOVRadius
-fovCircle.Color = Color3.fromRGB(0, 255, 0)  -- Green
+fovCircle.Color = Color3.fromRGB(0, 255, 0)
 fovCircle.Thickness = 1
 fovCircle.Transparency = 0.5
 fovCircle.Visible = true
@@ -63,7 +61,6 @@ local function applyESP(player)
         if not char then return end
         if char:FindFirstChild("HighlightESP") then return end
 
-        -- Ensure parts exist
         local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 5)
         if not head then return end
 
@@ -71,20 +68,18 @@ local function applyESP(player)
         h.Name = "HighlightESP"
         h.Adornee = char
         h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        h.FillColor = Color3.fromRGB(255, 0, 0)  -- Red outline
-        h.FillTransparency = 1  -- Only outline
-        h.OutlineColor = Color3.new(1, 1, 1)  -- White outline color
+        h.FillColor = Color3.fromRGB(255, 0, 0)
+        h.FillTransparency = 1
+        h.OutlineColor = Color3.new(1, 1, 1)
         h.OutlineTransparency = 0
-        h.Parent = char  -- Parent to the character instead of CoreGui
+        h.Parent = char
     end
 
-    -- Character spawns
     player.CharacterAdded:Connect(function()
         task.wait(1)
         add()
     end)
 
-    -- Apply immediately if possible
     if player.Character then
         task.spawn(function()
             task.wait(1)
@@ -93,7 +88,6 @@ local function applyESP(player)
     end
 end
 
--- Apply ESP to all players
 for _, plr in pairs(players:GetPlayers()) do
     applyESP(plr)
 end
@@ -168,3 +162,27 @@ game:GetService("RunService").RenderStepped:Connect(function()
         end
     end
 end)
+
+-- SILENT AIM HOOK
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = { ... }
+
+    if method == "FindPartOnRayWithIgnoreList" and self == workspace then
+        local target = getClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local origin = args[1].Origin
+            local direction = (target.Character.Head.Position - origin).Unit * 1000
+            args[1] = Ray.new(origin, direction)
+            return oldNamecall(self, unpack(args))
+        end
+    end
+
+    return oldNamecall(self, unpack(args))
+end)
+
+setreadonly(mt, true)
